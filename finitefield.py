@@ -40,7 +40,7 @@ def generateIrreduciblePolynomial(modulus, degree):
    while True:
       coefficients = [Zp(random.randint(0, modulus-1)) for _ in range(degree)]
       randomMonicPolynomial = Polynomial(coefficients + [Zp(1)])
-      print(randomMonicPolynomial)
+      # print(randomMonicPolynomial)
 
       if isIrreducible(randomMonicPolynomial, modulus):
          return randomMonicPolynomial
