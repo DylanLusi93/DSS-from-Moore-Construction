@@ -10,8 +10,15 @@ class Point:
         self.sc = sc
 
     def __eq__(self, other):
-        if other.fc == self.fc and other.sc == self.fc:
+        if type(self.fc) is type(None) or type(other.fc) is type(None):
+            if type(self.fc) is type(None) and type(other.fc) is type(None):
+                return True
+            else:
+                return False
+
+        elif other.fc == self.fc and other.sc == self.sc:
             return True
+
         else:
             return False
 
@@ -44,7 +51,7 @@ class Block:
         self.point3 = point3
         self.point4 = point4
 
-    def __contains__(self, point):
+    def __contains__(self, point: Point):
         if self.point1 == point or self.point2 == point or self.point3 == point or self.point4 == point:
             return True
         else:
@@ -58,18 +65,18 @@ class Block:
 
     def add_forbidden(self, n):
         other = copy.deepcopy(self)
-        other.point1.add_forbidden(n)
-        other.point2.add_forbidden(n)
-        other.point3.add_forbidden(n)
-        other.point4.add_forbidden(n)
+        other.point1 = other.point1.add_forbidden(n)
+        other.point2 = other.point2.add_forbidden(n)
+        other.point3 = other.point3.add_forbidden(n)
+        other.point4 = other.point4.add_forbidden(n)
         return other
 
     def add_coset_rep(self, h):
         other = copy.deepcopy(self)
-        other.point1.add_coset_rep(h)
-        other.point2.add_coset_rep(h)
-        other.point3.add_coset_rep(h)
-        other.point4.add_coset_rep(h)
+        other.point1 = other.point1.add_coset_rep(h)
+        other.point2 = other.point2.add_coset_rep(h)
+        other.point3 = other.point3.add_coset_rep(h)
+        other.point4 = other.point4.add_coset_rep(h)
         return other
 
 def get_least_primitive_root(p):
@@ -128,11 +135,24 @@ def get_optimal_dual_labelling(p, n):
     q = p**n
     F_q = ff.FiniteField(p, n)
     t = (p**n - 1)//4
-    # get primitive element x
+    # get primitive element x and enumerate all field elements
+    field_eles_all = [0 for _ in range(q)]
     if n == 1:
         x = F_q(get_least_primitive_root(p))
+        field_eles_all = [F_q(i) for i in range(q)]
     else:
         x = get_primitive_root(F_q, p, n)
+        coefficients = [0 for _ in range(n)]
+        for _ in range(q):
+            field_eles_all[_] = F_q(coefficients)
+            # increment coefficients
+            for idx in range(n - 1, -1, -1):
+                if coefficients[idx] < p - 1:
+                    coefficients[idx] += 1
+                    for j in range(idx + 1, n):
+                        coefficients[j] = 0
+                    break
+
     df_blocks = [[] for _ in range(t)]
     for i in range(t):
         df_blocks[i] = Block(Point(x**i, 0), Point(-x**i, 0), Point(x**(i + t), 1), Point(-x**(i+t), 1))
@@ -148,13 +168,13 @@ def get_optimal_dual_labelling(p, n):
         for i in range(len(df_blocks)//2):
             for j in range(3):
                 rk[3*i + j] = df_blocks[i].add_forbidden(j)
-                rk[3*len(df_blocks) - 3*i - j] = df_blocks[len(df_blocks) - i].add_forbidden(j)
+                rk[3*len(df_blocks) - 3*i - j] = df_blocks[len(df_blocks) - 1 - i].add_forbidden(j)
 
         rk[3*len(df_blocks)//2] = infty_block
 
         # ensure that rk is development-consistent with respect to H = F_q \times {0}
         for i in range(3*len(df_blocks) + 1):
-            for j in range(q - 1):
+            for j in range(1, q):
                 rk[i + j*(3*len(df_blocks) + 1)] = rk[i].add_coset_rep(x**j)
 
     # implements Lemma 4.8
@@ -254,6 +274,26 @@ def get_optimal_dual_labelling(p, n):
             for j in range(p**(n-1)):
                 for k in range(p):
                     rk[i + j*(3*t + 1)] = rk[i].add_coset_rep(buckets_refined[j][k])
+
+
+
+    # Now construct the labelled dual design from the block labelling rk
+    v = 3*q + 1
+    dual = [[] for _ in range(v)]
+    count = 0
+    for block in df_blocks:
+        for j in range(3):
+            block_current = block.add_forbidden(j)
+            for key in vars(block_current):
+                for idx in range(len(rk)):
+                    if rk[idx].__contains__(vars(block_current)[key]):
+                        dual[count] = dual[count] + [idx]
+
+    for point in vars(infty_block):
+        for idx in range(len(rk)):
+            if point in vars(rk[idx]):
+                dual[count] = dual[count] + [idx]
+
 
 
 
